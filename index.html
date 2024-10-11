@@ -68,7 +68,7 @@
     <div class="flex-container">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
                 greater happiness. The circles are placed over a map which shows the average sunlight intensity for each
                 county
                 in the US.
@@ -92,7 +92,7 @@
     <div class="flex-container">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
                 greater happiness. The circles are placed over a map which shows the average temperature for each
                 county
                 in the US.
@@ -115,7 +115,7 @@
     <div class="flex-container">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
                 greater happiness. The circles are placed over a map which shows the average precipitation for each
                 county
                 in the US.
@@ -200,13 +200,15 @@
                 const happinessExtent = d3.extent(data, d => d["happiness"]);
                 const happinessScale = d3.scaleLinear().domain(happinessExtent)
                     .range([0, 15]);
+                
+                const happinessColorScale = d3.scaleSequential(d3.interpolateGnBu).domain(happinessExtent);
 
                 mapArea.selectAll("circle").data(data)
                     .join("circle")
                     .attr("cx", d => projection([d["longitude"], d["latitude"]])[0])
                     .attr("cy", d => projection([d["longitude"], d["latitude"]])[1])
                     .attr("r", d => happinessScale(d["happiness"]))
-                    .style("fill", "black")
+                    .style("fill", d => happinessColorScale(d["happiness"]))
                     .style("stroke", "white")
                 // .style("opacity", 0.7)
 
