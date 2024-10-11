@@ -1,0 +1,523 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Scatterplot</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+  
+        .gridlines line {
+          stroke: #bbb;
+        }
+        
+        .gridlines .domain {
+          stroke: none;
+        }
+      
+    </style>
+</head>
+<body>
+    <svg id="titleSvg" height=100 width=1000> 
+    </svg>
+    <svg id = "scatterplot" height=500 width=1000 style="margin-bottom: 50px;"> 
+    </svg>
+    <script>
+        const titleSvg = d3.select('svg#titleSvg');
+        titleSvg.append('text')
+            .attr('x', 430)  
+            .attr('y', 40)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '24px')
+            .style('font-weight', 'bold')
+            .text('Happiness vs Sunshine');
+        
+        // add the caption
+        titleSvg.append('text')
+            .attr('x', 530) 
+            .attr('y', 80)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .text(`Graph 1: Happiness of USA cities with respect to the average hours of 
+                    sunshine a city gets per day. Each circle represents a city in the USA, 
+                    sorted into regions by color.`);
+
+
+        let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        d3.csv("happiness.csv").then( (data) => {
+            data.forEach( (d, i) => {
+                d['happiness'] = Number(d['happiness']);
+                d['sunshine_duration_mean'] = Number(d['sunshine_duration_mean']);
+                d['precipitation_hours_mean'] = Number(d['precipitation_hours_mean']);
+            });
+            console.log(data);
+
+            const svg = d3.select('svg#scatterplot');
+            const width = svg.attr('width');
+            const height = svg.attr('height');
+            const margins = {top: 10, right: 220, bottom: 70, left: 70};
+            const chartWidth = width - margins.left - margins.right;
+            const chartHeight = height - margins.top - margins.bottom;
+            let chartArea = svg.append('g')
+                                .attr('transform',`translate(${margins.left},${margins.top})`);
+
+            const sunshineExtent = d3.extent(data, d => d['sunshine_duration_mean']);
+            const sunshineScale = d3.scaleLinear()
+                                    .domain(sunshineExtent)
+                                    .range([0, chartWidth]);
+
+            const happinessExtent = d3.extent(data, d => d['happiness']);
+            const happinessScale = d3.scaleLinear()
+                                        .domain(happinessExtent)
+                                        .range([chartHeight, 0]);
+
+            // happiness on the y-axis
+            let leftAxis = d3.axisLeft(happinessScale);
+            svg.append('g')
+                .attr('class', 'y axis')
+                .attr('transform',`translate(${margins.left-10},${margins.top})`) 
+                .call(leftAxis);
+
+            svg.append('text')
+                .attr('class', 'left axis label')
+                .attr('transform',`translate(${margins.left-45},${chartHeight/2 + margins.top + 20}) rotate(${-90})`) 
+                .text('Happiness');
+            
+            // sunshine on the x-axis
+            let bottomAxis = d3.axisBottom(sunshineScale);
+            svg.append('g')
+                .attr('class', 'x axis')
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomAxis);
+            
+                
+            svg.append('text')
+                .attr('class', 'bottom axis label')
+                .attr('transform',`translate(${chartWidth/2 - margins.left + 15},${chartHeight+margins.top+45})`)
+                .text('Mean Sunshine Duration (Hours)');
+
+            console.log("This is the y coordinate of the sunshine label: ");
+            console.log(chartHeight+margins.top+50);
+
+            // left gridlines
+            let leftGridlines = d3.axisLeft(happinessScale)
+                                    .tickSize(-chartWidth-10)
+                                    .tickFormat('');
+            svg.append('g')
+                .attr('class', 'y gridlines') 
+                .attr('transform',`translate(${margins.left-10},${margins.top})`)
+                .call(leftGridlines);
+
+            // bottom gridlines
+            let bottomGridlines = d3.axisBottom(sunshineScale)
+                                    .tickSize(-chartHeight-10)
+                                    .tickFormat('');
+                                    
+
+            svg.append('g')
+                .attr('class', 'x gridlines') 
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomGridlines);
+
+            // group points by region for background blobs
+            const groupedData = d3.groups(data, d => d.region);
+            console.log('grouped data: ');
+            console.log(groupedData);
+
+            // line generator to draw the path of the blobs and draw curves
+            const lineGen = d3.line()
+                                .curve(d3.curveMonotoneX);
+
+            // for each region, compute the convex hull and draw a path (blob)
+            groupedData.forEach(([region, points]) => {
+                const hull = d3.polygonHull(points.map(d => [sunshineScale(d['sunshine_duration_mean']), happinessScale(d['happiness'])]));
+
+                console.log("hull");
+                console.log(hull);
+                if (hull) {
+                    chartArea.append('path')
+                        .attr('d', lineGen(hull))
+                        .attr('fill', colorScale(region))
+                        .attr('opacity', 0.2)  // make the blobs lighter than the circles
+                        .attr('stroke', colorScale(region))
+                        .attr('stroke-width', 1);
+                }
+            });
+
+            // adding the points
+            let circles = chartArea.selectAll("circle").data(data)
+                                    .join("circle")
+                                    .attr("r", 6)
+                                    .attr('opacity', 0.4)
+                                    .attr("fill", d => colorScale(d.region))  // color by region
+                                    .attr("region", d => d.region)
+                                    .attr("cx", d => sunshineScale(d['sunshine_duration_mean']))
+                                    .attr("cy", d => happinessScale(d['happiness']));
+
+            // creating the legend
+            var legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${chartWidth + margins.left + 20}, ${margins.top})`);
+
+            let regionsArr = ["West", "Midwest", "Southwest", "Southeast", "Northeast"];
+
+            // creates the space for the rectangles in legend
+            let rectSpaces = legend.selectAll(".legend-key")
+                .data(regionsArr)
+                .enter()
+                .append('g')
+                .attr('class', 'legend-key')
+                .attr('transform', (elem, i) => `translate(0, ${i * 25})`); 
+
+            // Append rectangles to each legend entry
+            rectSpaces.append('rect')
+                .attr('height', 20)
+                .attr('width', 20)
+                .attr('opacity', 0.4)
+                .attr('fill', d => colorScale(d));  
+
+            // Append text labels for each legend entry
+            rectSpaces.append('text')
+                .attr('x', 30)  
+                .attr('y', 15)  
+                .text(d => d);
+
+
+            // make the points OVER the gridlines
+            chartArea.raise();
+    
+        });
+    </script>
+    <svg id="titleSvg2" height=100 width=1000> 
+    </svg>
+    <svg id = "scatterplot2" height=500 width=1000 style="margin-bottom: 50px;"> 
+    </svg>
+    <script>
+
+        titleSvg2 = d3.select('svg#titleSvg2');
+        titleSvg2.append('text')
+            .attr('x', 450)  
+            .attr('y', 40)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '24px')
+            .style('font-weight', 'bold')
+            .text('Happiness vs Precipitation Duration');
+        
+        // add the caption
+        titleSvg2.append('text')
+            .attr('x', 390) 
+            .attr('y', 80)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .text(`Graph 2: Happiness of USA cities with respect to logarithmic average hours 
+                    of precipitation a city experiences per day.`);
+
+        d3.csv("happiness.csv").then( (data) => {
+            data.forEach( (d, i) => {
+                d['happiness'] = Number(d['happiness']);
+                d['sunshine_duration_mean'] = Number(d['sunshine_duration_mean']);
+                d['precipitation_hours_mean'] = Number(d['precipitation_hours_mean']);
+            });
+
+            const svg = d3.select('svg#scatterplot2');
+            const width = svg.attr('width');
+            const height = svg.attr('height');
+            const margins = {top: 10, right: 220, bottom: 70, left: 70};
+            const chartWidth = width - margins.left - margins.right;
+            const chartHeight = height - margins.top - margins.bottom;
+            let chartArea = svg.append('g')
+                                .attr('transform',`translate(${margins.left},${margins.top})`);
+
+            const precipExtent = d3.extent(data, d => d['precipitation_hours_mean']);
+            const precipScale = d3.scaleLog()
+                                    .domain(precipExtent)
+                                    .range([0, chartWidth]);
+
+
+            console.log("precip extent: ");
+            console.log(precipExtent);
+
+            const happinessExtent = d3.extent(data, d => d['happiness']);
+            const happinessScale = d3.scaleLinear()
+                                        .domain(happinessExtent)
+                                        .range([chartHeight, 0]);
+
+            // happiness on the y-axis
+            let leftAxis = d3.axisLeft(happinessScale);
+            svg.append('g')
+                .attr('class', 'y axis')
+                .attr('transform',`translate(${margins.left-10},${margins.top})`) 
+                .call(leftAxis);
+
+            svg.append('text')
+                .attr('class', 'left axis label')
+                .attr('transform',`translate(${margins.left-45},${chartHeight/2 + margins.top + 20}) rotate(${-90})`) 
+                .text('Happiness');
+            
+            // precip on the x-axis
+            let bottomAxis = d3.axisBottom(precipScale)
+                                .ticks(10, "~g");
+            svg.append('g')
+                .attr('class', 'x axis')
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomAxis);
+        
+            svg.append('text')
+                .attr('class', 'bottom axis label')
+                .attr('transform',`translate(${chartWidth/2  - margins.left + 20},${chartHeight+margins.top+45})`)
+                .text('Logarithmic Mean Precipitation Hours');
+
+            // left gridlines
+            let leftGridlines = d3.axisLeft(happinessScale)
+                                    .tickSize(-chartWidth-10)
+                                    .tickFormat('');
+            svg.append('g')
+                .attr('class', 'y gridlines') 
+                .attr('transform',`translate(${margins.left-10},${margins.top})`)
+                .call(leftGridlines);
+
+            // bottom gridlines
+            let bottomGridlines = d3.axisBottom(precipScale)
+                                    .tickSize(-chartHeight-10)
+                                    .tickFormat('');
+            svg.append('g')
+                .attr('class', 'x gridlines') 
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomGridlines);
+
+
+            // group points by region for background blobs
+            const groupedData = d3.groups(data, d => d.region);
+            console.log('grouped data: ');
+            console.log(groupedData);
+
+            // line generator to draw the path of the blobs and draw curves
+            const lineGen = d3.line()
+                                .curve(d3.curveMonotoneX);
+
+            // for each region, compute the convex hull and draw a path (blob)
+            groupedData.forEach(([region, points]) => {
+                const hull = d3.polygonHull(points.map(d => [precipScale(d['precipitation_hours_mean']), happinessScale(d['happiness'])]));
+
+                if (hull) {
+                    chartArea.append('path')
+                        .attr('d', lineGen(hull))
+                        .attr('fill', colorScale(region))
+                        .attr('opacity', 0.2)  // make the blobs lighter than the circles
+                        .attr('stroke', colorScale(region))
+                        .attr('stroke-width', 1);
+                }
+            });
+
+            // adding the points
+            let circles = chartArea.selectAll("circle").data(data)
+                                    .join("circle")
+                                    .attr("r", 6)
+                                    .attr('opacity', 0.4)
+                                    .attr("fill", d => colorScale(d.region))  // color by region
+                                    .attr("region", d => d.region)
+                                    .attr("city", d => d.city)
+                                    .attr("precip", d => d['precipitation_hours_mean'])
+                                    .attr("cx", d => precipScale(d['precipitation_hours_mean']))
+                                    .attr("cy", d => happinessScale(d['happiness']));
+
+            // creating the legend
+            var legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${chartWidth + margins.left + 20}, ${margins.top})`);
+
+            let regionsArr = ["West", "Midwest", "Southwest", "Southeast", "Northeast"];
+
+            // creates the space for the rectangles in legend
+            let rectSpaces = legend.selectAll(".legend-key")
+                .data(regionsArr)
+                .enter()
+                .append('g')
+                .attr('class', 'legend-key')
+                .attr('transform', (elem, i) => `translate(0, ${i * 25})`); 
+
+            // Append rectangles to each legend entry
+            rectSpaces.append('rect')
+                .attr('height', 20)
+                .attr('width', 20)
+                .attr('opacity', 0.4)
+                .attr('fill', d => colorScale(d));  
+
+            // Append text labels for each legend entry
+            rectSpaces.append('text')
+                .attr('x', 30)  
+                .attr('y', 15)  
+                .text(d => d);
+
+
+            // make the points OVER the gridlines
+            chartArea.raise();
+    
+        });
+    </script>
+    <svg id="titleSvg3" height=100 width=1000> 
+    </svg>
+    <svg id = "scatterplot3" height=500 width=1000> 
+    </svg>
+    <script>
+        titleSvg3 = d3.select('svg#titleSvg3');
+        titleSvg3.append('text')
+            .attr('x', 450)  
+            .attr('y', 40)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '24px')
+            .style('font-weight', 'bold')
+            .text('Happiness vs Precipitation Amount');
+        
+        // add the caption
+        titleSvg3.append('text')
+            .attr('x', 400) 
+            .attr('y', 80)  
+            .attr('text-anchor', 'middle')
+            .style('font-size', '14px')
+            .text(`Graph 3: Happiness of USA cities with respect to the 
+                logarithmic average precipitation in inches a city experiences 
+                per day.`);
+        d3.csv("happiness.csv").then( (data) => {
+            data.forEach( (d, i) => {
+                d['happiness'] = Number(d['happiness']);
+                d['precipitation_sum_mean'] = Number(d['precipitation_sum_mean']);
+            });
+            console.log("scatter plot 3: ");
+            console.log(data);
+            const svg = d3.select('svg#scatterplot3');
+            const width = svg.attr('width');
+            const height = svg.attr('height');
+            const margins = {top: 10, right: 220, bottom: 70, left: 70};
+            const chartWidth = width - margins.left - margins.right;
+            const chartHeight = height - margins.top - margins.bottom;
+            let chartArea = svg.append('g')
+                                .attr('transform',`translate(${margins.left},${margins.top})`);
+
+            const precipExtent = d3.extent(data, d => d['precipitation_sum_mean']);
+            console.log("precip sum extent: ");
+            console.log(precipExtent);
+            const precipScale = d3.scaleLog()
+                                    .domain(precipExtent)
+                                    .range([0, chartWidth]);
+
+
+            const happinessExtent = d3.extent(data, d => d['happiness']);
+            const happinessScale = d3.scaleLinear()
+                                        .domain(happinessExtent)
+                                        .range([chartHeight, 0]);
+
+            // happiness on the y-axis
+            let leftAxis = d3.axisLeft(happinessScale);
+            svg.append('g')
+                .attr('class', 'y axis')
+                .attr('transform',`translate(${margins.left-10},${margins.top})`) 
+                .call(leftAxis);
+
+            svg.append('text')
+                .attr('class', 'left axis label')
+                .attr('transform',`translate(${margins.left-45},${chartHeight/2 + margins.top + 20}) rotate(${-90})`) 
+                .text('Happiness');
+            
+            // precip on the x-axis
+            let bottomAxis = d3.axisBottom(precipScale)
+                                .ticks(10, "~g");
+            svg.append('g')
+                .attr('class', 'x axis')
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomAxis);
+        
+            svg.append('text')
+                .attr('class', 'bottom axis label')
+                .attr('transform',`translate(${chartWidth/2 - margins.left },${chartHeight+margins.top+45})`)
+                .text('Logarithmic Mean Precipitation Sum (Inches)');
+
+            // left gridlines
+            let leftGridlines = d3.axisLeft(happinessScale)
+                                    .tickSize(-chartWidth-10)
+                                    .tickFormat('');
+            svg.append('g')
+                .attr('class', 'y gridlines') 
+                .attr('transform',`translate(${margins.left-10},${margins.top})`)
+                .call(leftGridlines);
+
+            // bottom gridlines
+            let bottomGridlines = d3.axisBottom(precipScale)
+                                    .tickSize(-chartHeight-10)
+                                    .tickFormat('');
+            svg.append('g')
+                .attr('class', 'x gridlines') 
+                .attr('transform',`translate(${margins.left},${chartHeight+margins.top+10})`)
+                .call(bottomGridlines);
+
+            // group points by region for background blobs
+            const groupedData = d3.groups(data, d => d.region);
+            console.log('grouped data: ');
+            console.log(groupedData);
+
+            // line generator to draw the path of the blobs and draw curves
+            const lineGen = d3.line()
+                                .curve(d3.curveMonotoneX);
+
+            // for each region, compute the convex hull and draw a path (blob)
+            groupedData.forEach(([region, points]) => {
+                const hull = d3.polygonHull(points.map(d => [precipScale(d['precipitation_sum_mean']), happinessScale(d['happiness'])]));
+                
+                if (hull) {
+                    chartArea.append('path')
+                        .attr('d', lineGen(hull))
+                        .attr('fill', colorScale(region))
+                        .attr('opacity', 0.2)  // make the blobs lighter than the circles
+                        .attr('stroke', colorScale(region))
+                        .attr('stroke-width', 1);
+                }
+            });
+
+
+            // adding the points
+            let circles = chartArea.selectAll("circle").data(data)
+                                    .join("circle")
+                                    .attr("r", 6)
+                                    .attr('opacity', 0.4)
+                                    .attr("fill", d => colorScale(d.region))  // color by region
+                                    .attr("region", d => d.region)
+                                    .attr("city", d => d.city)
+                                    .attr("precip_sum", d => d['precipitation_sum_mean'])
+                                    .attr("cx", d => precipScale(d['precipitation_sum_mean']))
+                                    .attr("cy", d => happinessScale(d['happiness']));
+
+            // creating the legend
+            var legend = svg.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(${chartWidth + margins.left + 20}, ${margins.top})`);
+
+            let regionsArr = ["West", "Midwest", "Southwest", "Southeast", "Northeast"];
+
+            // creates the space for the rectangles in legend
+            let rectSpaces = legend.selectAll(".legend-key")
+                .data(regionsArr)
+                .enter()
+                .append('g')
+                .attr('class', 'legend-key')
+                .attr('transform', (elem, i) => `translate(0, ${i * 25})`); 
+
+            // Append rectangles to each legend entry
+            rectSpaces.append('rect')
+                .attr('height', 20)
+                .attr('width', 20)
+                .attr('opacity', 0.4)
+                .attr('fill', d => colorScale(d));  
+
+            // Append text labels for each legend entry
+            rectSpaces.append('text')
+                .attr('x', 30)  
+                .attr('y', 15)  
+                .text(d => d);
+
+
+            // make the points OVER the gridlines
+            chartArea.raise();
+    
+        });
+    </script>
+</body>
+</html>
