@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parallel Coordinates Plot</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script> 
+    <style>
+        .axis path, .axis line {
+            fill: none;
+            shape-rendering: crispEdges;
+        }
+        .axis text {
+            font-size: 12px;
+        }
+        .line {
+            fill: none;
+            stroke: steelblue;
+            stroke-width: 1.5px;
+            opacity: 0.5;
+        }
+        .tooltip {
+            opacity: 0;
+            position: absolute;
+            background-color: white;
+            border: solid 1px;
+            padding: 10px;
+            pointer-events: none;
+            z-index: 10;  
+        }
+    </style>
+</head>
+<body>
+    <h3>Graph: Visualizing Parallel Coordinates of Happiness and Climate Data</h3>
+    <p>This D3 code creates a parallel coordinates plot visualizing dimensions like happiness and climate data, to see how different factors like temperature, rain, and income levels correlate with happiness. </p>
+
+    <svg id="parallelPlot" width="1000" height="500"></svg>
+    <div id="tooltip" class="tooltip"></div>
+
+<script>
+    const margin = { top: 50, right: 30, bottom: 30, left: 100 },
+          width = 1000 - margin.left - margin.right,
+          height = 500 - margin.top - margin.bottom;
+
+    const svg = d3.select("#parallelPlot")
+        .append("g")
+        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+    const tooltip = d3.select("#tooltip");
+
+    d3.csv("P1 INFO 3300 - Sheet1.csv").then((data) => {
+        const dimensions = ["happiness", "max_temp_mean", "rain_sum_mean", "income_employment_rank"];
+
+        const y = {};
+        dimensions.forEach(dim => {
+            if (dim === "rain_sum_mean") {
+                y[dim] = d3.scaleLinear()
+                            .domain(d3.extent(data, d => +d[dim]))
+                            .range([0, height]);  
+            } else {
+                y[dim] = d3.scaleLinear()
+                            .domain(d3.extent(data, d => +d[dim]))
+                            .range([height, 0]);
+            }
+        });
+
+        const x = d3.scalePoint()
+                    .range([0, width])
+                    .padding(1)
+                    .domain(dimensions);
+
+        function path(d) {
+            return d3.line()(dimensions.map(p => [x(p), y[p](+d[p])]));
+        }
+
+        svg.selectAll("myPath")
+            .data(data)
+            .enter().append("path")
+            .attr("class", "line")
+            .attr("d", path)
+            .on("mouseover", (event, d) => {
+                d3.select(event.currentTarget).style("stroke", "orange").style("opacity", 1);
+                tooltip
+                    .style("opacity", 1)
+                    .html(`City: ${d.city}`)  
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY + 10) + "px");
+            })
+            .on("mousemove", (event) => {
+                tooltip
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY + 10) + "px");
+            })
+            .on("mouseout", (event, d) => {
+                d3.select(event.currentTarget).style("stroke", "steelblue").style("opacity", 0.5);
+                tooltip.style("opacity", 0);
+            });
+
+        svg.selectAll("myAxis")
+            .data(dimensions).enter()
+            .append("g")
+            .attr("transform", d => `translate(${x(d)})`)
+            .each(function(d) { d3.select(this).call(d3.axisLeft().scale(y[d])); })
+            .append("text")
+            .style("text-anchor", "middle")
+            .attr("y", -9)
+            .text(d => d)
+            .style("fill", "black");
+    });
+
+    // Citation: I referred to the Mozilla Developers Network (MDN) Mouse Events Documentation, and additional insights for creating parallel coordinates plots were obtained from the D3 Graph Gallery. Source: https://d3-graph-gallery.com/parallel 
+
+</script>
+</body>
+</html>
