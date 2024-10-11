@@ -67,7 +67,6 @@
     <h2>How does sunlight affect happiness?</h2>
     <div class="flex-container">
         <div>
-            <h3>Happiness v.s. Sunlight Intensity</h3>
             <p>
                 This graph shows the happiness values of various cities in the US, with larger circles indicating
                 greater happiness. The circles are placed over a map which shows the average sunlight intensity for each
@@ -80,8 +79,6 @@
                 style="background: #fff; margin-top:30px; padding-bottom:50px"></svg>
         </div>
         <div>
-
-            <h3>Happiness v.s. Sunlight Intensity</h3>
             <p>
                 Happiness of USA cities with respect to the intensity of sunlight a city gets per day. Each circle
                 represents a city in the USA,
@@ -94,7 +91,6 @@
     <h2>How does temperature affect happiness?</h2>
     <div class="flex-container">
         <div>
-            <h3>Happiness v.s. Average Daily Temperature</h3>
             <p>
                 This graph shows the happiness values of various cities in the US, with larger circles indicating
                 greater happiness. The circles are placed over a map which shows the average temperature for each
@@ -106,7 +102,6 @@
                 style="background: #fff; margin-top:30px; padding-bottom:50px"></svg>
         </div>
         <div>
-            <h3>Happiness v.s. Average Daily Temperature</h3>
             <p>
                 Happiness of USA cities with respect to the average temperature a city gets per day. Each circle represents a
                 city in the USA,
@@ -119,7 +114,6 @@
     <h2>How does precipitation affect happiness?</h2>
     <div class="flex-container">
         <div>
-            <h3>Happiness v.s. Average Daily Precipitation</h3>
             <p>
                 This graph shows the happiness values of various cities in the US, with larger circles indicating
                 greater happiness. The circles are placed over a map which shows the average precipitation for each
@@ -131,7 +125,6 @@
                 style="background: #fff; margin-top:30px; padding-bottom:50px"></svg>
         </div>
         <div>
-            <h3>Happiness v.s. Average Daily Precipitation</h3>
             <p>
                 Happiness of USA cities with respect to the logarithmic average precipitation in inches a city experiences per
                 day. Each circle represents a city in the USA,
@@ -140,6 +133,13 @@
             <svg id="precip_scatterplot" height=500 width=900 style="margin-bottom: 50px;"></svg>
         </div>
     </div>
+
+    <h2>Visualizing Parallel Coordinates of Happiness and Climate Data</h2>
+    <p>This parallel coordinates plot visualizes dimensions like happiness and climate data, to see
+        how different factors like temperature, rain, and income levels correlate with happiness. </p>
+
+    <svg id="parallelPlot" width="1000" height="500"></svg>
+    <div id="tooltip" class="tooltip"></div>
 
     <script>
         const requestData = async function () {
@@ -217,7 +217,7 @@
 
                 const weatherVarScale = d3.scaleQuantile()
                     .domain(d3.map(countyWeatherData, d => d[weatherVar]))
-                    .range(["#fff", "#62a1db", "#e7d87d", "#dd9f40", "#b4451f", "#b01111"]);
+                    .range(["#e8ecfa", "#62a1db", "#e7d87d", "#dd9f40", "#b4451f", "#b01111"]);
 
 
                 // 3d. Recolor the states to make a choropleth map
@@ -395,13 +395,6 @@
             }
         });
     </script>
-
-    <h3>Graph: Visualizing Parallel Coordinates of Happiness and Climate Data</h3>
-    <p>This D3 code creates a parallel coordinates plot visualizing dimensions like happiness and climate data, to see
-        how different factors like temperature, rain, and income levels correlate with happiness. </p>
-
-    <svg id="parallelPlot" width="1000" height="500"></svg>
-    <div id="tooltip" class="tooltip"></div>
 
     <script>
         const margin = { top: 50, right: 30, bottom: 30, left: 100 },
