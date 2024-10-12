@@ -13,7 +13,7 @@
             stroke: none;
         }
 
-        .state {
+        .county {
             fill: lightgrey;
         }
 
@@ -41,7 +41,6 @@
 
         .line {
             fill: none;
-            stroke: steelblue;
             stroke-width: 1.5px;
             opacity: 0.5;
         }
@@ -59,16 +58,22 @@
         .flex-container {
             display: flex;
         }
+
+        .padding {
+            margin-left: 5;
+            margin-right: 5;
+        }
     </style>
 </head>
 
 <body>
-    <h1>Happiness v.s. Weather Variables in the US</h1>
+    <h1>Happiness v.s. Weather Variables in the US :)</h1>
     <h2>How does sunlight affect happiness?</h2>
-    <div class="flex-container">
+    <div class="flex-container padding">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles
+                indicating
                 greater happiness. The circles are placed over a map which shows the average sunlight intensity for each
                 county
                 in the US.
@@ -89,10 +94,11 @@
     </div>
 
     <h2>How does temperature affect happiness?</h2>
-    <div class="flex-container">
+    <div class="flex-container padding">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles
+                indicating
                 greater happiness. The circles are placed over a map which shows the average temperature for each
                 county
                 in the US.
@@ -103,7 +109,8 @@
         </div>
         <div>
             <p>
-                Happiness of USA cities with respect to the average temperature a city gets per day. Each circle represents a
+                Happiness of USA cities with respect to the average temperature a city gets per day. Each circle
+                represents a
                 city in the USA,
                 sorted into regions by color.
             </p>
@@ -112,10 +119,11 @@
     </div>
 
     <h2>How does precipitation affect happiness?</h2>
-    <div class="flex-container">
+    <div class="flex-container padding">
         <div>
             <p>
-                This graph shows the happiness values of various cities in the US, with larger and darker circles indicating
+                This graph shows the happiness values of various cities in the US, with larger and darker circles
+                indicating
                 greater happiness. The circles are placed over a map which shows the average precipitation for each
                 county
                 in the US.
@@ -126,7 +134,8 @@
         </div>
         <div>
             <p>
-                Happiness of USA cities with respect to the logarithmic average precipitation in inches a city experiences per
+                Happiness of USA cities with respect to the logarithmic average precipitation in inches a city
+                experiences per
                 day. Each circle represents a city in the USA,
                 sorted into regions by color.
             </p>
@@ -142,21 +151,18 @@
     <div id="tooltip" class="tooltip"></div>
 
     <script>
+        // Code below adapted from October 7 class notes
         const requestData = async function () {
             let countiesDataset = await d3.json("counties-10m.json");
-            console.log(countiesDataset);
 
             const countyWeatherData = await d3.csv("county_weather_data.csv");
-            console.log(countyWeatherData);
 
             var countyDict = {}   // countyID ===> countyData
             countyWeatherData.forEach(d => {
                 countyDict[d["County Code"]] = d;
             });
-            console.log(countyDict)
 
             const data = await d3.csv("happiness.csv", d3.autoType);
-            console.log(data);
 
             makeMap("sunlight_map", "Avg Daily Sunlight (MJ/m)", "#sunlight_map_legend", "Average Daily Sunlight (MJ/m²)")
             makeMap("temp_map", "Avg Temp", "#temp_map_legend", "Avg Daily Temp (°F)")
@@ -173,24 +179,20 @@
                 let mapArea = svg.append('g')
                     .attr('transform', `translate(${margins.left},${margins.top})`);
 
-                // 2b. Pick out topographic features and build d3 helpers
-                var counties = topojson.feature(countiesDataset, countiesDataset.objects.counties);     // List of state outlines to fill
-                var countiesMesh = topojson.mesh(countiesDataset, countiesDataset.objects.counties);    // 'Mesh' of all outlines put together for a stroke
+                // Pick out topographic features and build d3 helpers
+                var counties = topojson.feature(countiesDataset, countiesDataset.objects.counties);
+                var countiesMesh = topojson.mesh(countiesDataset, countiesDataset.objects.counties);
                 var projection = d3.geoAlbersUsa().fitSize([mapWidth, mapHeight], counties);
                 var path = d3.geoPath().projection(projection);
-                console.log(counties);
-                console.log(countiesMesh);
 
-                // 2d. Add a graticule (we did this after 2c, but it must go here)
-                //      (Graticules are much more configurable, but we'll use the default for now)
+                // Add a graticule
                 let graticule = d3.geoGraticule10();
                 mapArea.append("path").attr("class", "graticule").attr("d", path(graticule));
 
-                // 2c. Draw states and outlines (see CSS at the top)
-                let statePaths = mapArea.selectAll("path.state").data(counties.features)
+                // Draw counties and outlines
+                let countyPaths = mapArea.selectAll("path.county").data(counties.features)
                     .join("path")
-                    .attr("class", "state")
-                    .attr("note", d => d.id)  // debugging
+                    .attr("class", "county")
                     .attr("d", path)
 
                 mapArea.append("path").datum(countiesMesh)
@@ -200,9 +202,10 @@
                 const happinessExtent = d3.extent(data, d => d["happiness"]);
                 const happinessScale = d3.scaleLinear().domain(happinessExtent)
                     .range([0, 15]);
-                
+
                 const happinessColorScale = d3.scaleSequential(d3.interpolateGnBu).domain(happinessExtent);
 
+                // Add the happiness circles
                 mapArea.selectAll("circle").data(data)
                     .join("circle")
                     .attr("cx", d => projection([d["longitude"], d["latitude"]])[0])
@@ -210,30 +213,41 @@
                     .attr("r", d => happinessScale(d["happiness"]))
                     .style("fill", d => happinessColorScale(d["happiness"]))
                     .style("stroke", "white")
-                // .style("opacity", 0.7)
 
-
-                // 3c. Make a d3 color scale for frequency    
+                // Make a color scale for weather vars    
                 const weatherVarExtent = d3.extent(countyWeatherData, d => d[weatherVar]);
-                console.log(weatherVarExtent);
 
                 const weatherVarScale = d3.scaleQuantile()
                     .domain(d3.map(countyWeatherData, d => d[weatherVar]))
                     .range(["#e8ecfa", "#62a1db", "#e7d87d", "#dd9f40", "#b4451f", "#b01111"]);
 
-
-                // 3d. Recolor the states to make a choropleth map
-                mapArea.selectAll(".state")
+                // Recolor the counties to make a choropleth map
+                mapArea.selectAll(".county")
                     .style("fill", d => weatherVarScale(countyDict[d.id] === undefined ? 0 : countyDict[d.id][weatherVar]));
 
-                // 3e. Use the extra legend code to draw a legend
+                // Hiding Alaska and Hawaii
+                mapArea.append("rect")
+                    .attr('x', -10)
+                    .attr('y', 342)
+                    .attr('width', 240)
+                    .attr('height', 150)
+                    .attr('fill', '#fff');
+                
+                mapArea.append("rect")
+                    .attr('x', -10)
+                    .attr('y', 390)
+                    .attr('width', 310)
+                    .attr('height', 150)
+                    .attr('fill', '#fff');
+
+                // Use Prof. Rz's legend code to draw a legend
+                // Flexible legend-drawing function - Jeff Rzeszotarski, 2022
+                // Released under MIT Free license
                 drawLegend(legendSelect, weatherVarScale, legendText);
             }
         }
         requestData();
     </script>
-
-
 
     <script>
         let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
@@ -245,7 +259,6 @@
                 d['precipitation_hours_mean'] = Number(d['precipitation_hours_mean']);
                 d['shortwave_radiation_sum_mean'] = Number(d['shortwave_radiation_sum_mean']);
             });
-            console.log(data);
 
             makeScatterplot('sunlight_scatterplot', 'shortwave_radiation_sum_mean', 'lin', 'Average Daily Sunlight (MJ/m²)')
             makeScatterplot('temp_scatterplot', 'avg_temp_mean', 'lin', 'Mean Temperature (°F)')
@@ -262,8 +275,7 @@
                     .attr('transform', `translate(${margins.left},${margins.top})`);
 
                 const varExtent = d3.extent(data, d => d[varName]);
-                console.log(varName)
-                console.log(varExtent)
+
                 var varScale = undefined
                 if (scale === "lin") {
                     varScale = d3.scaleLinear()
@@ -305,9 +317,6 @@
                     .attr('transform', `translate(${chartWidth / 2 - margins.left + 15},${chartHeight + margins.top + 45})`)
                     .text(bottomText);
 
-                console.log("This is the y coordinate of the sunshine label: ");
-                console.log(chartHeight + margins.top + 50);
-
                 // left gridlines
                 let leftGridlines = d3.axisLeft(happinessScale)
                     .tickSize(-chartWidth - 10)
@@ -330,8 +339,6 @@
 
                 // group points by region for background blobs
                 const groupedData = d3.groups(data, d => d.region);
-                console.log('grouped data: ');
-                console.log(groupedData);
 
                 // line generator to draw the path of the blobs and draw curves
                 const lineGen = d3.line()
@@ -341,8 +348,6 @@
                 groupedData.forEach(([region, points]) => {
                     const hull = d3.polygonHull(points.map(d => [varScale(d[varName]), happinessScale(d['happiness'])]));
 
-                    console.log("hull");
-                    console.log(hull);
                     if (hull) {
                         chartArea.append('path')
                             .attr('d', lineGen(hull))
@@ -399,7 +404,7 @@
     </script>
 
     <script>
-        const margin = { top: 50, right: 30, bottom: 30, left: 100 },
+        const margin = { top: 50, right: 100, bottom: 30, left: 100 },
             width = 1000 - margin.left - margin.right,
             height = 500 - margin.top - margin.bottom;
 
@@ -412,15 +417,26 @@
         d3.csv("happiness.csv").then((data) => {
             const dimensions = ["happiness", "max_temp_mean", "rain_sum_mean", "income_employment_rank"];
 
+            const regions = d3.groups(data, d => d.region);
+
+            const topCities = regions.flatMap(([region, cities]) => {
+                return cities
+                    .sort((a, b) => d3.descending(+a.happiness, +b.happiness))
+                    .slice(0, 2);
+            });
+
+            const colorScale = d3.scaleOrdinal(d3.schemeCategory10)
+                .domain([...new Set(topCities.map(d => d.region))]);
+
             const y = {};
             dimensions.forEach(dim => {
                 if (dim === "rain_sum_mean") {
                     y[dim] = d3.scaleLinear()
-                        .domain(d3.extent(data, d => +d[dim]))
+                        .domain(d3.extent(topCities, d => +d[dim]))
                         .range([0, height]);
                 } else {
                     y[dim] = d3.scaleLinear()
-                        .domain(d3.extent(data, d => +d[dim]))
+                        .domain(d3.extent(topCities, d => +d[dim]))
                         .range([height, 0]);
                 }
             });
@@ -435,15 +451,16 @@
             }
 
             svg.selectAll("myPath")
-                .data(data)
+                .data(topCities)
                 .enter().append("path")
                 .attr("class", "line")
                 .attr("d", path)
+                .style("stroke", d => colorScale(d.region))
                 .on("mouseover", (event, d) => {
                     d3.select(event.currentTarget).style("stroke", "orange").style("opacity", 1);
                     tooltip
                         .style("opacity", 1)
-                        .html(`City: ${d.city}`)
+                        .html(`City: ${d.city}<br>Region: ${d.region}`)
                         .style("left", (event.pageX + 10) + "px")
                         .style("top", (event.pageY + 10) + "px");
                 })
@@ -453,7 +470,7 @@
                         .style("top", (event.pageY + 10) + "px");
                 })
                 .on("mouseout", (event, d) => {
-                    d3.select(event.currentTarget).style("stroke", "steelblue").style("opacity", 0.5);
+                    d3.select(event.currentTarget).style("stroke", colorScale(d.region)).style("opacity", 0.5);
                     tooltip.style("opacity", 0);
                 });
 
@@ -467,10 +484,34 @@
                 .attr("y", -9)
                 .text(d => d)
                 .style("fill", "black");
+
+            const legend = svg.append("g")
+                .attr("class", "legend")
+                .attr("transform", `translate(${width + 20}, 20)`);
+
+            const legendRegions = [...new Set(topCities.map(d => d.region))];
+
+            legend.selectAll("legendDots")
+                .data(legendRegions)
+                .enter()
+                .append("rect")
+                .attr("x", 0)
+                .attr("y", (d, i) => i * 25)
+                .attr("width", 18)
+                .attr("height", 18)
+                .style("fill", d => colorScale(d));
+
+            legend.selectAll("legendLabels")
+                .data(legendRegions)
+                .enter()
+                .append("text")
+                .attr("x", 25)
+                .attr("y", (d, i) => i * 25 + 13)
+                .text(d => d)
+                .style("fill", "black")
+                .style("font-size", "12px");
         });
-
-        // Citation: I referred to the Mozilla Developers Network (MDN) Mouse Events Documentation, and additional insights for creating parallel coordinates plots were obtained from the D3 Graph Gallery. Source: https://d3-graph-gallery.com/parallel 
-
+        // Citation:  I referred to the Mozilla Developers Network (MDN) Mouse Events Documentation, and additional insights for creating parallel coordinates plots were obtained from the D3 Graph Gallery. Source: https://d3-graph-gallery.com/parallel, https://jonathansoma.com/lede/storytelling/d3/grouping-and-nesting/, https://observablehq.com/@sandraviz/d3-hierarchal-data
     </script>
 
     <script>
